@@ -19,9 +19,9 @@ import com.geovis.extract_service.service.TaskServiceImpl;
 import com.geovis.extract_service.util.CmdUtil;
 import com.geovis.extract_service.util.ZipUtil;
 
-@Component("extractFromTifByFcnTask")
+@Component("extractFromJsonByUnetImpl")
 @Scope("prototype")
-public class ExtractFromTifByFcnTaskImpl implements Task {
+public class ExtractFromJsonByUnetImpl implements Task {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 	
@@ -32,7 +32,7 @@ public class ExtractFromTifByFcnTaskImpl implements Task {
 	private String extractResultLocation;
 	
 	@Value("${unet.pythonfile.location}")
-	private String unetLocation;
+	private String unetFileLocation;
 	
 	private Long taskId;
 	
@@ -49,30 +49,24 @@ public class ExtractFromTifByFcnTaskImpl implements Task {
 		Long taskId = this.getTaskId();
 		taskServiceImpl.updateStatus(taskId, TaskStatus.Ready.getCode());
 		TaskEntity taskEntity = taskServiceImpl.getTaskEntityById(taskId);
-		String uploadFilesDir = taskEntity.getUploadFilesDir();				//这个值是tif文件上传后的全路径
+		String uploadFilesDir = taskEntity.getUploadFilesDir();				//一次post请求，上传多个文件，放在一个文件夹中
 		
-		//将以前的过程文件删除
-		String testDataDir = unetLocation + "test_data/";
+
+		//将以前的过程文件删除,并将上传的文件放入u-net/test_data/文件夹下准备predict
+		String testDataDir = unetFileLocation + "test_data/";
 		for (File testData : new File(testDataDir).listFiles()) {
 			testData.delete();
 		}
-
-		//把tif文件切成小块,并写入pngDir和annotationDir中
-		logger.info("tif文件开始切割");
-		String splitTifPyFile = unetLocation + "splitTifToPngs.py";
-		String[] splitCmd = new String[] {"python", splitTifPyFile, uploadFilesDir, testDataDir, 256+"", 256+""};
-		CmdUtil.processCmd(splitCmd);
-		logger.info("tif文件完成切割");
-		
-		//启动U-Net进行提取
-		logger.info("U-Net开始提取");
+			
+		//启动UNET进行提取
+		logger.info("U-Net extract start");
 		taskServiceImpl.updateStatus(taskId, TaskStatus.Extracting.getCode());
-		File preFileDir = new File(unetLocation + "result/");
-		File tifPresDir = new File(unetLocation + "result/" + "tifFilesDir/");
-		if(!preFileDir.exists()) {
-			preFileDir.mkdirs();
+		File resultDir = new File(unetFileLocation + "result/");
+		File tifPresDir = new File(unetFileLocation + "result/" + "tifFilesDir/");
+		if (!resultDir.exists()) {
+			resultDir.mkdirs();
 		}
-		for(File file : preFileDir.listFiles()) {
+		for(File file : resultDir.listFiles()) {
 			file.delete();
 		}
 		if(tifPresDir.exists()) {
@@ -80,32 +74,53 @@ public class ExtractFromTifByFcnTaskImpl implements Task {
 				tifpreFile.delete();
 			}
 		}
-		String unetMainLocation = unetLocation + "predict.py";
-		String[] fcnCmd = new String[] {"python", unetMainLocation};
+		String unetMainLocation = unetFileLocation + "startWhileUseJson.py";
+		String[] fcnCmd = new String[] {"python", unetMainLocation, uploadFilesDir};
 		CmdUtil.processCmd(fcnCmd);
-		logger.info("U-Net提取完成");
-		
-		//将提取的结果合成原始大小的tif
-		logger.info("结果文件合并开始");
-		String tifFilesDir = unetLocation + "result/tifFilesDir/";
-		new File(tifFilesDir).mkdirs();
-		String joinPyFile = unetLocation + "joinPngsToOneTif.py";
-		String[] joinCmd = new String[] {"python", joinPyFile, unetLocation + "result/", unetLocation + "result/tifFilesDir/result.tif", uploadFilesDir, 256+"", 256+""};
-		CmdUtil.processCmd(joinCmd);
-		logger.info("结果文件合并完成");
+		logger.info("U-Net extract succ");
 
-		//最终结果矢量化
+		
+//		//预测文件resize
+//		String resizePyFile = unetFileLocation + "imageResize.py";
+//		String presDir = unetFileLocation + "result/";
+//		if (x!=256 || y!=256) {
+//			String[] resizeCmd = new String[] {"python", resizePyFile, presDir, x+"", y+""};
+//			CmdUtil.processCmd(resizeCmd);
+//		}
+		
+		
+		//最终结果矢量化，并转成geojson
 		logger.info("最终结果矢量化开始");
+		String presDir = unetFileLocation + "result/";
 		taskServiceImpl.updateStatus(taskId, TaskStatus.Polygonizing.getCode());
-		String polygonizePyFile = unetLocation + "tifToShp.py";
+		String polygonizePyFile = unetFileLocation + "pngToShp.py";
+		String pngFilesDir = presDir;
+		String tifFilesDir = presDir + "tifFilesDir/";
+		new File(tifFilesDir).mkdirs();
 		String shpFilesDir = extractResultLocation + taskId + File.separator;
 		new File(shpFilesDir).mkdirs();
-		String[] polygonizeCmd = new String[] {"python", polygonizePyFile, tifFilesDir, shpFilesDir};		
+		String[] polygonizeCmd = new String[] {"python", polygonizePyFile, pngFilesDir, tifFilesDir, 256+"", 256+"", shpFilesDir};
+		for (String aString : polygonizeCmd) {
+			System.out.println(aString);
+		}
 		CmdUtil.processCmd(polygonizeCmd);
 		logger.info("最终结果矢量化完成");
+		
+//		//shp文件转geojson
+//		logger.info("shp转geojson开始");
+//		for (File f : new File(shpFilesDir).listFiles()) {
+//			String fileName = f.getAbsolutePath();
+//			if (fileName.endsWith(".shp")) {
+//				String geoJsonName = fileName.replace(".shp", ".geojson");
+//				String[] ogr2ogrCmd = new String[] {"ogr2ogr", "-f", "GeoJson", geoJsonName, fileName};
+//				CmdUtil.processCmd(ogr2ogrCmd);
+//			}
+//		}
+//		logger.info("shp转geojson结束");
 
+		
 		//最终矢量结果压缩
-		logger.info("矢量结果压缩开始");
+		logger.info("矢量文件压缩开始");
 		try {
 			ZipUtil.zipShpFile(shpFilesDir);
 		} catch (IOException e) {
@@ -114,8 +129,7 @@ public class ExtractFromTifByFcnTaskImpl implements Task {
 		String shpResultPath = shpFilesDir + "exact.zip";
 		taskServiceImpl.addShpResultPath(taskId, shpResultPath);
 		taskServiceImpl.updateStatus(taskId, TaskStatus.Complete.getCode());
-		logger.info("矢量结果压缩完成");
-		
+		logger.info("矢量文件压缩完成");
 	}
 
 }

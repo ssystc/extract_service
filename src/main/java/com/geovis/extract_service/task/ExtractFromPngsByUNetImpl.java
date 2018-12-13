@@ -104,8 +104,8 @@ public class ExtractFromPngsByUNetImpl implements Task {
 				tifpreFile.delete();
 			}
 		}
-		String unetMainLocation = unetFileLocation + "predict.py";
-		String[] fcnCmd = new String[] {"python", unetMainLocation};
+		String unetMainLocation = unetFileLocation + "startWhileUsePngs.py";
+		String[] fcnCmd = new String[] {"python", unetMainLocation, testDataDir};
 		CmdUtil.processCmd(fcnCmd);
 		logger.info("U-Net extract succ");
 
@@ -113,11 +113,14 @@ public class ExtractFromPngsByUNetImpl implements Task {
 		//预测文件resize
 		String resizePyFile = unetFileLocation + "imageResize.py";
 		String presDir = unetFileLocation + "result/";
-		String[] resizeCmd = new String[] {"python", resizePyFile, presDir, x+"", y+""};
-		CmdUtil.processCmd(resizeCmd);
-
+		if (x!=256 || y!=256) {
+			String[] resizeCmd = new String[] {"python", resizePyFile, presDir, x+"", y+""};
+			CmdUtil.processCmd(resizeCmd);
+		}
 		
-		//最终结果矢量化
+		
+		//最终结果矢量化，并转成geojson
+		logger.info("最终结果矢量化开始");
 		taskServiceImpl.updateStatus(taskId, TaskStatus.Polygonizing.getCode());
 		String polygonizePyFile = unetFileLocation + "pngToShp.py";
 		String pngFilesDir = presDir;
@@ -132,20 +135,21 @@ public class ExtractFromPngsByUNetImpl implements Task {
 		CmdUtil.processCmd(polygonizeCmd);
 		logger.info("最终结果矢量化完成");
 		
-		//shp文件转geojson
-		logger.info("shp转geojson结束");
-		for (File f : new File(shpFilesDir).listFiles()) {
-			String fileName = f.getAbsolutePath();
-			if (fileName.endsWith(".shp")) {
-				String geoJsonName = fileName.replace(".shp", ".geojson");
-				String[] ogr2ogrCmd = new String[] {"ogr2ogr", "-f", "GeoJson", geoJsonName, fileName};
-				CmdUtil.processCmd(ogr2ogrCmd);
-			}
-		}
-		logger.info("shp转geojson结束");
+//		//shp文件转geojson
+//		logger.info("shp转geojson开始");
+//		for (File f : new File(shpFilesDir).listFiles()) {
+//			String fileName = f.getAbsolutePath();
+//			if (fileName.endsWith(".shp")) {
+//				String geoJsonName = fileName.replace(".shp", ".geojson");
+//				String[] ogr2ogrCmd = new String[] {"ogr2ogr", "-f", "GeoJson", geoJsonName, fileName};
+//				CmdUtil.processCmd(ogr2ogrCmd);
+//			}
+//		}
+//		logger.info("shp转geojson结束");
 
 		
 		//最终矢量结果压缩
+		logger.info("矢量文件压缩开始");
 		try {
 			ZipUtil.zipShpFile(shpFilesDir);
 		} catch (IOException e) {

@@ -32,4 +32,10 @@ public class CmdUtil {
 			}
 		}
 	}
+	
+	public static void main(String[] args) {
+		String[] cmd = new String[] {"python", "E:\\test\\test\\test.py"};
+		processCmd(cmd);
+	}
+	
 }
