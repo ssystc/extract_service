@@ -1,17 +1,13 @@
 package com.geovis.extract_service.controller;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.PrintStream;
-import java.nio.file.Path;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.annotation.Resource;
@@ -23,12 +19,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.geovis.extract_service.ExtractApplicationContext;
+import com.geovis.extract_service.bean.TaskInfoBean;
 import com.geovis.extract_service.entity.TaskEntity;
 import com.geovis.extract_service.response.SimpleResponse;
 import com.geovis.extract_service.service.TaskServiceImpl;
@@ -36,6 +32,7 @@ import com.geovis.extract_service.task.ExtractFromJsonByUnetImpl;
 import com.geovis.extract_service.task.ExtractFromPngsByFcnTaskImpl;
 import com.geovis.extract_service.task.ExtractFromPngsByUNetImpl;
 import com.geovis.extract_service.task.ExtractFromTifByUNetImpl;
+import com.geovis.extract_service.task.FangT;
 import com.geovis.extract_service.task.TaskStatus;
 import com.geovis.extract_service.task.TestTaskImpl;
 import com.geovis.extract_service.task.manager.TaskManagerThread;
@@ -44,6 +41,12 @@ import com.geovis.extract_service.task.manager.TaskManagerThread;
 
 @RestController
 public class MainController {
+	
+	@Autowired
+	private FangT fangt;
+	
+	@Autowired
+	private TaskInfoBean taskInfoBean;
 	
 	@Resource(name="taskManagerThread")
 	private TaskManagerThread taskManagerThread;
@@ -113,52 +116,142 @@ public class MainController {
 		}
     }
 	
-	@GetMapping("/download")
+	@GetMapping(value="/download", produces="application/json; charset=UTF-8")
 	@CrossOrigin
 	public SimpleResponse downloadFile(HttpServletRequest request, HttpServletResponse response, @RequestParam Long taskId) {
 		
-		TaskEntity taskEntity = taskServiceImpl.getTaskEntityById(taskId);
-		if(taskEntity.getStatus() == TaskStatus.Complete.getCode()) {
-			String filePath = taskEntity.getShpResultPath();
-			File file = new File(filePath);
-			if (file.exists()) {
-				response.setContentType("application/force-download");// 设置强制下载不打开
-	            response.addHeader("Content-Disposition", "attachment;fileName=" + "extract.zip");// 设置文件名
-	            byte[] buffer = new byte[1024];
-	            FileInputStream fis = null;
-	            BufferedInputStream bis = null;
-	            try {
-	                fis = new FileInputStream(file);
-	                bis = new BufferedInputStream(fis);
-	                OutputStream os = response.getOutputStream();
-	                int i = bis.read(buffer);
-	                while (i != -1) {
-	                    os.write(buffer, 0, i);
-	                    i = bis.read(buffer);
-	                }
-	            } catch (Exception e) {
-	                e.printStackTrace();
-	            } finally {
-	                if (bis != null) {
-	                    try {
-	                        bis.close();
-	                    } catch (IOException e) {
-	                        e.printStackTrace();
-	                    }
-	                }
-	                if (fis != null) {
-	                    try {
-	                        fis.close();
-	                    } catch (IOException e) {
-	                        e.printStackTrace();
-	                    }
-	                }
-	            }
+		String filePath = "/data/dl_data/ownFcn/extract_result/" + taskId + "/exact.zip";
+		
+		
+		while(true) {		
+			File f = new File(filePath);
+			if(f.exists()) {
+				break;
 			}
-			return new SimpleResponse(TaskStatus.Complete.getCode(), TaskStatus.Complete.getMessage(), taskId); 
-		} else {
-			return new SimpleResponse(taskEntity.getStatus(), "programming...", taskId);
+			else {
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
 		}
+		try {
+			Thread.sleep(200);
+		} catch (InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		File file = new File(filePath);
+		if (file.exists()) {
+			response.setContentType("application/force-download");// 设置强制下载不打开
+		    response.addHeader("Content-Disposition", "attachment;fileName=" + "extract.zip");// 设置文件名
+		    byte[] buffer = new byte[1024];
+		    FileInputStream fis = null;
+		    BufferedInputStream bis = null;
+		    try {
+		        fis = new FileInputStream(file);
+		        bis = new BufferedInputStream(fis);
+		        OutputStream os = response.getOutputStream();
+		        int i = bis.read(buffer);
+		        while (i != -1) {
+		            os.write(buffer, 0, i);
+		            i = bis.read(buffer);
+		        }
+		    } catch (Exception e) {
+		        e.printStackTrace();
+		    } finally {
+		        if (bis != null) {
+		            try {
+		                bis.close();
+		            } catch (IOException e) {
+		                e.printStackTrace();
+		            }
+		        }
+		        if (fis != null) {
+		            try {
+		                fis.close();
+		            } catch (IOException e) {
+		                e.printStackTrace();
+		            }
+		        }
+		    }
+		}
+		return null;
+		
+		
+//		Set<Integer> errors = TaskStatus.getErrorsSet();
+//
+//		TaskEntity taskEntity = taskServiceImpl.getTaskEntityById(taskId);
+//		
+//		while(true) {		
+//			if(errors.contains(taskEntity.getStatus())) {
+//				return new SimpleResponse(taskEntity.getStatus(), "error", taskId);
+//			}
+//			
+//			if(taskServiceImpl.getTaskEntityById(taskId).getStatus() == TaskStatus.Complete.getCode()) {
+//				break;
+//			}
+//			
+//			else {
+//				try {
+//					Thread.sleep(10);
+//				} catch (InterruptedException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
+//			}
+//		}
+//		try {
+//			Thread.sleep(200);
+//		} catch (InterruptedException e1) {
+//			// TODO Auto-generated catch block
+//			e1.printStackTrace();
+//		}
+//		
+//		if(taskServiceImpl.getTaskEntityById(taskId).getStatus() == TaskStatus.Complete.getCode()) {
+//			String filePath = taskEntity.getShpResultPath();
+//			File file = new File(filePath);
+//			if (file.exists()) {
+//				response.setContentType("application/force-download");// 设置强制下载不打开
+//	            response.addHeader("Content-Disposition", "attachment;fileName=" + "extract.zip");// 设置文件名
+//	            byte[] buffer = new byte[1024];
+//	            FileInputStream fis = null;
+//	            BufferedInputStream bis = null;
+//	            try {
+//	                fis = new FileInputStream(file);
+//	                bis = new BufferedInputStream(fis);
+//	                OutputStream os = response.getOutputStream();
+//	                int i = bis.read(buffer);
+//	                while (i != -1) {
+//	                    os.write(buffer, 0, i);
+//	                    i = bis.read(buffer);
+//	                }
+//	            } catch (Exception e) {
+//	                e.printStackTrace();
+//	            } finally {
+//	                if (bis != null) {
+//	                    try {
+//	                        bis.close();
+//	                    } catch (IOException e) {
+//	                        e.printStackTrace();
+//	                    }
+//	                }
+//	                if (fis != null) {
+//	                    try {
+//	                        fis.close();
+//	                    } catch (IOException e) {
+//	                        e.printStackTrace();
+//	                    }
+//	                }
+//	            }
+//			}
+//			return null; 
+//		} else {
+//			return new SimpleResponse(taskEntity.getStatus(), "programming...", taskId);
+//		}
 	}
 	
 	@PostMapping("/uploadJson")
@@ -194,6 +287,7 @@ public class MainController {
 			}
 			
 			TaskEntity task = new TaskEntity(filePath);
+			task.setStatus(TaskStatus.Ready.getCode());
 			taskServiceImpl.saveTaskEntity(task);
 			Long id = task.getId();
 			ExtractFromJsonByUnetImpl extractFromJsonByUnetImpl = (ExtractFromJsonByUnetImpl)ExtractApplicationContext.getBean("extractFromJsonByUnetImpl");
@@ -259,6 +353,22 @@ public class MainController {
 		} catch (Exception e) {
 			return new SimpleResponse(TaskStatus.UploadError.getCode(), TaskStatus.UploadError.getMessage());
 		}
+	}
+	
+	@GetMapping("/fangru")
+	public String fangru(@RequestParam("id") Long id, @RequestParam("status") Integer status) {
+		fangt.ftest(id, status);
+		return "succ";
+	}
+	
+	@GetMapping("/quchu")
+	public String quchu() {
+		Map<Long, Integer> map = taskInfoBean.getStatusMap();
+		String mString = "";
+		for(Long idLong : map.keySet()) {
+			mString += idLong;
+		}
+		return mString;
 	}
 
 }

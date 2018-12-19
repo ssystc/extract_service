@@ -53,7 +53,7 @@ private final Logger logger = LoggerFactory.getLogger(getClass());
 			testData.delete();
 		}
 
-		//把tif文件切成小块,并写入pngDir和annotationDir中
+		//把tif文件切成小块,并写入testDataDir中
 		logger.info("tif文件开始切割");
 		String splitTifPyFile = unetLocation + "splitTifToPngs.py";
 		String[] splitCmd = new String[] {"python", splitTifPyFile, uploadFilesDir, testDataDir, 256+"", 256+""};
@@ -76,8 +76,8 @@ private final Logger logger = LoggerFactory.getLogger(getClass());
 				tifpreFile.delete();
 			}
 		}
-		String unetMainLocation = unetLocation + "start.py";
-		String[] fcnCmd = new String[] {"python", unetMainLocation};
+		String unetMainLocation = unetLocation + "startWhileUsePngs.py";
+		String[] fcnCmd = new String[] {"python", unetMainLocation, testDataDir};
 		CmdUtil.processCmd(fcnCmd);
 		logger.info("U-Net提取完成");
 		

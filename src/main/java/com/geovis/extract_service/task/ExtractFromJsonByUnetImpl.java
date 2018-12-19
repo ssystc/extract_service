@@ -46,6 +46,7 @@ public class ExtractFromJsonByUnetImpl implements Task {
 	
 	@Override
 	public void startRun() {
+		logger.info("start Extract use json");
 		Long taskId = this.getTaskId();
 		taskServiceImpl.updateStatus(taskId, TaskStatus.Ready.getCode());
 		TaskEntity taskEntity = taskServiceImpl.getTaskEntityById(taskId);

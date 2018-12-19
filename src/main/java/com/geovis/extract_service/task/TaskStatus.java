@@ -1,5 +1,8 @@
 package com.geovis.extract_service.task;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public enum TaskStatus {
 
 	Complete(0, "complete success"),
@@ -39,6 +42,15 @@ public enum TaskStatus {
             }
         }
         return  null;
+    }
+    
+    public static Set<Integer> getErrorsSet(){
+    	Set<Integer> errors = new HashSet<Integer>();
+    	errors.add(4);
+    	errors.add(5);
+    	errors.add(6);
+    	errors.add(7);
+    	return errors;
     }
 	
 }
