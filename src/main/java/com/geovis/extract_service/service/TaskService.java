@@ -1,5 +1,7 @@
 package com.geovis.extract_service.service;
 
+import org.springframework.data.domain.Page;
+
 import com.geovis.extract_service.entity.TaskEntity;
 
 public interface TaskService {
@@ -50,4 +52,8 @@ public interface TaskService {
 	 */
 	void addShpResultPath(long id, String shpResultPath);
 	
+	/**
+	 * 分页查询所有
+	 */
+	Page<TaskEntity> findAllByPage(int pageNum, int pageSize);
 }

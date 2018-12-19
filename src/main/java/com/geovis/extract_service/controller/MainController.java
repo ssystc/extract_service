@@ -16,6 +16,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -61,6 +62,13 @@ public class MainController {
 		return "succ";
 	}
 	
+	@GetMapping(value="/findAll")
+	@CrossOrigin
+	public Page<TaskEntity> findAll(@RequestParam(name="pageNum", defaultValue="1") int pageNum,
+			@RequestParam(name="pageSize", defaultValue="10") int pageSize){
+		return taskServiceImpl.findAllByPage(pageNum, pageSize);
+	}
+	
 	@GetMapping(value="/getStatus")
 	@CrossOrigin
 	public SimpleResponse getStatus(@RequestParam Long taskId) {
@@ -75,6 +83,7 @@ public class MainController {
 		while(true) {
 			Integer status = taskInfoBean.getStatusMap().get(taskId);
 			if (status == TaskStatus.Complete.getCode()) {
+				taskInfoBean.getStatusMap().remove(taskId);
 				TaskEntity task = taskServiceImpl.getTaskEntityById(taskId);
 				String filePath = task.getShpResultPath();
 				

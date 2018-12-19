@@ -3,6 +3,11 @@ package com.geovis.extract_service.service;
 import javax.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -73,6 +78,14 @@ public class TaskServiceImpl implements TaskService {
 		TaskEntity task = taskRespository.findOneById(id);
 		task.setShpResultPath(shpResultPath);
 		taskRespository.save(task);
+	}
+	
+	@Override
+	public Page<TaskEntity> findAllByPage(int pageNum, int pageSize) {
+		pageNum = pageNum-1;
+		Sort sort = new Sort(Direction.ASC, "id");
+		Pageable pageable = new PageRequest(pageNum, pageSize, sort);
+		return taskRespository.findAll(pageable);
 	}
 	
 }

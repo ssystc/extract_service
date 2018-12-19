@@ -1,7 +1,11 @@
 package com.geovis.extract_service.respository;
 
+
+
 import javax.transaction.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,6 +17,8 @@ public interface TaskRespository extends JpaRepository<TaskEntity, Long> {
 
 	
 	TaskEntity findOneById(Long id);
+	
+	Page<TaskEntity> findAll(Pageable pageable);
 	
 //	@Transactional
 //	@Modifying(clearAutomatically=true)
