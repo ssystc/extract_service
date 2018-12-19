@@ -16,6 +16,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,7 +33,6 @@ import com.geovis.extract_service.task.ExtractFromJsonByUnetImpl;
 import com.geovis.extract_service.task.ExtractFromPngsByFcnTaskImpl;
 import com.geovis.extract_service.task.ExtractFromPngsByUNetImpl;
 import com.geovis.extract_service.task.ExtractFromTifByUNetImpl;
-import com.geovis.extract_service.task.FangT;
 import com.geovis.extract_service.task.TaskStatus;
 import com.geovis.extract_service.task.TestTaskImpl;
 import com.geovis.extract_service.task.manager.TaskManagerThread;
@@ -41,9 +41,6 @@ import com.geovis.extract_service.task.manager.TaskManagerThread;
 
 @RestController
 public class MainController {
-	
-	@Autowired
-	private FangT fangt;
 	
 	@Autowired
 	private TaskInfoBean taskInfoBean;
@@ -64,57 +61,74 @@ public class MainController {
 		return "succ";
 	}
 	
-//	@PostMapping("/uploadtif_old")
-//	public SimpleResponse uploadTifFile(@RequestParam("file") MultipartFile file) {
-//		try {
-//			String fileDir = uploadLocation + UUID.randomUUID().toString() + File.separator;
-//			File filesDirFile = new File(fileDir);
-//			filesDirFile.mkdirs();
-//			
-//			String filename = file.getOriginalFilename();
-//			String destFileName = fileDir + filename;
-//			File dest = new File(destFileName);
-//			file.transferTo(dest);
-//			
-//			TaskEntity task = new TaskEntity(destFileName);
-//			taskServiceImpl.saveTaskEntity(task);
-//			Long id = task.getId();
-//			ExtractFromTifByFcnTaskImpl extractFromTifByFcnTaskImpl = (ExtractFromTifByFcnTaskImpl)ExtractApplicationContext.getBean("extractFromTifByFcnTask");
-//			extractFromTifByFcnTaskImpl.setTaskId(id);
-//			taskManagerThread.addTask(extractFromTifByFcnTaskImpl);
-//			
-//			return new SimpleResponse(TaskStatus.Ready.getCode(), TaskStatus.Ready.getMessage(), id);
-//		} catch (Exception e) {
-//			return new SimpleResponse(TaskStatus.UploadError.getCode(), TaskStatus.UploadError.getMessage());
-//		}
-//	}
+	@GetMapping(value="/getStatus")
+	@CrossOrigin
+	public SimpleResponse getStatus(@RequestParam Long taskId) {
+		TaskEntity task = taskServiceImpl.getTaskEntityById(taskId);
+		return new SimpleResponse(task.getStatus(), TaskStatus.getMessageByCode(task.getStatus()));
+	}
 	
-	@PostMapping("/upload_old")
-    public SimpleResponse uploadFiles(@RequestParam("files") MultipartFile[] files){
-    	try {
-    		String filesDir = uploadLocation + UUID.randomUUID().toString() + File.separator;
-    		File filesDirFile = new File(filesDir);
-    		filesDirFile.mkdirs();
-    		
-			for (int i = 0; i < files.length; i++) {
-				String filename = files[i].getOriginalFilename();
-				String destFileName = filesDir + filename;
-				File dest = new File(destFileName);
-				files[i].transferTo(dest);
+	@GetMapping(value="/download_new")
+	@CrossOrigin
+	public SimpleResponse downloadResult(HttpServletRequest request, HttpServletResponse response, @RequestParam Long taskId) {
+		
+		while(true) {
+			Integer status = taskInfoBean.getStatusMap().get(taskId);
+			if (status == TaskStatus.Complete.getCode()) {
+				TaskEntity task = taskServiceImpl.getTaskEntityById(taskId);
+				String filePath = task.getShpResultPath();
+				
+				File file = new File(filePath);
+				if (file.exists()) {
+					response.setContentType("application/force-download");// 设置强制下载不打开
+				    response.addHeader("Content-Disposition", "attachment;fileName=" + "extract.zip");// 设置文件名
+				    byte[] buffer = new byte[1024];
+				    FileInputStream fis = null;
+				    BufferedInputStream bis = null;
+				    try {
+				        fis = new FileInputStream(file);
+				        bis = new BufferedInputStream(fis);
+				        OutputStream os = response.getOutputStream();
+				        int i = bis.read(buffer);
+				        while (i != -1) {
+				            os.write(buffer, 0, i);
+				            i = bis.read(buffer);
+				        }
+				    } catch (Exception e) {
+				        e.printStackTrace();
+				    } finally {
+				        if (bis != null) {
+				            try {
+				                bis.close();
+				            } catch (IOException e) {
+				                e.printStackTrace();
+				            }
+				        }
+				        if (fis != null) {
+				            try {
+				                fis.close();
+				            } catch (IOException e) {
+				                e.printStackTrace();
+				            }
+				        }
+				    }
+				}
+				return null;
+			
 			}
-			
-			TaskEntity task = new TaskEntity(filesDir);
-			taskServiceImpl.saveTaskEntity(task);
-			Long id = task.getId();
-			ExtractFromPngsByFcnTaskImpl extractFromPngsByFcnTaskImpl = (ExtractFromPngsByFcnTaskImpl)ExtractApplicationContext.getBean("extractFromPngByFcnTask");
-			extractFromPngsByFcnTaskImpl.setTaskId(id);
-			taskManagerThread.addTask(extractFromPngsByFcnTaskImpl);
-			
-			return new SimpleResponse(TaskStatus.Ready.getCode(), TaskStatus.Ready.getMessage(), id);
-		} catch (IllegalStateException | IOException e) {
-			return new SimpleResponse(TaskStatus.UploadError.getCode(), TaskStatus.UploadError.getMessage());
+			else if(TaskStatus.getErrorsSet().contains(status)) {
+				return new SimpleResponse(status, TaskStatus.getMessageByCode(status));
+			}
+			else {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}	
 		}
-    }
+	}
 	
 	@GetMapping(value="/download", produces="application/json; charset=UTF-8")
 	@CrossOrigin
@@ -180,78 +194,6 @@ public class MainController {
 		    }
 		}
 		return null;
-		
-		
-//		Set<Integer> errors = TaskStatus.getErrorsSet();
-//
-//		TaskEntity taskEntity = taskServiceImpl.getTaskEntityById(taskId);
-//		
-//		while(true) {		
-//			if(errors.contains(taskEntity.getStatus())) {
-//				return new SimpleResponse(taskEntity.getStatus(), "error", taskId);
-//			}
-//			
-//			if(taskServiceImpl.getTaskEntityById(taskId).getStatus() == TaskStatus.Complete.getCode()) {
-//				break;
-//			}
-//			
-//			else {
-//				try {
-//					Thread.sleep(10);
-//				} catch (InterruptedException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
-//			}
-//		}
-//		try {
-//			Thread.sleep(200);
-//		} catch (InterruptedException e1) {
-//			// TODO Auto-generated catch block
-//			e1.printStackTrace();
-//		}
-//		
-//		if(taskServiceImpl.getTaskEntityById(taskId).getStatus() == TaskStatus.Complete.getCode()) {
-//			String filePath = taskEntity.getShpResultPath();
-//			File file = new File(filePath);
-//			if (file.exists()) {
-//				response.setContentType("application/force-download");// 设置强制下载不打开
-//	            response.addHeader("Content-Disposition", "attachment;fileName=" + "extract.zip");// 设置文件名
-//	            byte[] buffer = new byte[1024];
-//	            FileInputStream fis = null;
-//	            BufferedInputStream bis = null;
-//	            try {
-//	                fis = new FileInputStream(file);
-//	                bis = new BufferedInputStream(fis);
-//	                OutputStream os = response.getOutputStream();
-//	                int i = bis.read(buffer);
-//	                while (i != -1) {
-//	                    os.write(buffer, 0, i);
-//	                    i = bis.read(buffer);
-//	                }
-//	            } catch (Exception e) {
-//	                e.printStackTrace();
-//	            } finally {
-//	                if (bis != null) {
-//	                    try {
-//	                        bis.close();
-//	                    } catch (IOException e) {
-//	                        e.printStackTrace();
-//	                    }
-//	                }
-//	                if (fis != null) {
-//	                    try {
-//	                        fis.close();
-//	                    } catch (IOException e) {
-//	                        e.printStackTrace();
-//	                    }
-//	                }
-//	            }
-//			}
-//			return null; 
-//		} else {
-//			return new SimpleResponse(taskEntity.getStatus(), "programming...", taskId);
-//		}
 	}
 	
 	@PostMapping("/uploadJson")
@@ -293,7 +235,7 @@ public class MainController {
 			ExtractFromJsonByUnetImpl extractFromJsonByUnetImpl = (ExtractFromJsonByUnetImpl)ExtractApplicationContext.getBean("extractFromJsonByUnetImpl");
 			extractFromJsonByUnetImpl.setTaskId(id);
 			taskManagerThread.addTask(extractFromJsonByUnetImpl);
-			
+			taskInfoBean.getStatusMap().put(id, TaskStatus.Ready.getCode());
 			return new SimpleResponse(TaskStatus.Ready.getCode(), TaskStatus.Ready.getMessage(), id);
 		} catch (Exception e) {
 			return new SimpleResponse(TaskStatus.UploadError.getCode(), TaskStatus.UploadError.getMessage());
@@ -323,7 +265,7 @@ public class MainController {
 			ExtractFromPngsByUNetImpl extractFromPngsByUNetImpl = (ExtractFromPngsByUNetImpl)ExtractApplicationContext.getBean("extractFromPngsByUNetImpl");
 			extractFromPngsByUNetImpl.setTaskId(id);
 			taskManagerThread.addTask(extractFromPngsByUNetImpl);
-			
+			taskInfoBean.getStatusMap().put(id, TaskStatus.Ready.getCode());
 			return new SimpleResponse(TaskStatus.Ready.getCode(), TaskStatus.Ready.getMessage(), id);
 		} catch (IllegalStateException | IOException e) {
 			return new SimpleResponse(TaskStatus.UploadError.getCode(), TaskStatus.UploadError.getMessage());
@@ -348,27 +290,11 @@ public class MainController {
 			ExtractFromTifByUNetImpl extractFromTifByUNetImpl = (ExtractFromTifByUNetImpl)ExtractApplicationContext.getBean("extractFromTifByUNetImpl");
 			extractFromTifByUNetImpl.setTaskId(id);
 			taskManagerThread.addTask(extractFromTifByUNetImpl);
-			
+			taskInfoBean.getStatusMap().put(id, TaskStatus.Ready.getCode());
 			return new SimpleResponse(TaskStatus.Ready.getCode(), TaskStatus.Ready.getMessage(), id);
 		} catch (Exception e) {
 			return new SimpleResponse(TaskStatus.UploadError.getCode(), TaskStatus.UploadError.getMessage());
 		}
-	}
-	
-	@GetMapping("/fangru")
-	public String fangru(@RequestParam("id") Long id, @RequestParam("status") Integer status) {
-		fangt.ftest(id, status);
-		return "succ";
-	}
-	
-	@GetMapping("/quchu")
-	public String quchu() {
-		Map<Long, Integer> map = taskInfoBean.getStatusMap();
-		String mString = "";
-		for(Long idLong : map.keySet()) {
-			mString += idLong;
-		}
-		return mString;
 	}
 
 }

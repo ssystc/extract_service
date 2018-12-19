@@ -15,7 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StopWatch.TaskInfo;
 
+import com.geovis.extract_service.bean.TaskInfoBean;
 import com.geovis.extract_service.entity.TaskEntity;
 import com.geovis.extract_service.service.TaskServiceImpl;
 import com.geovis.extract_service.util.CmdUtil;
@@ -25,6 +27,9 @@ import com.geovis.extract_service.util.ZipUtil;
 @Scope("prototype")
 public class ExtractFromPngsByUNetImpl implements Task {
 	private final Logger logger = LoggerFactory.getLogger(getClass());
+	
+	@Autowired
+	private TaskInfoBean taskInfoBean;
 	
 	@Autowired
 	private TaskServiceImpl taskServiceImpl;
@@ -158,6 +163,7 @@ public class ExtractFromPngsByUNetImpl implements Task {
 		String shpResultPath = shpFilesDir + "exact.zip";
 		taskServiceImpl.addShpResultPath(taskId, shpResultPath);
 		taskServiceImpl.updateStatus(taskId, TaskStatus.Complete.getCode());
+		taskInfoBean.getStatusMap().put(taskId, TaskStatus.Complete.getCode());
 		logger.info("矢量文件压缩完成");
 	}
 
