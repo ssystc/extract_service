@@ -73,7 +73,10 @@ public class MainController {
 	@CrossOrigin
 	public SimpleResponse getStatus(@RequestParam Long taskId) {
 		TaskEntity task = taskServiceImpl.getTaskEntityById(taskId);
-		return new SimpleResponse(task.getStatus(), TaskStatus.getMessageByCode(task.getStatus()));
+		if(task==null) {
+			return new SimpleResponse(500, "没有该任务");
+		}
+		return new SimpleResponse(task.getStatus(), TaskStatus.getMessageByCode(task.getStatus()), taskId);
 	}
 	
 	@GetMapping(value="/download_new")
@@ -282,6 +285,7 @@ public class MainController {
     }
 	
 	@PostMapping("/uploadTif")
+	@CrossOrigin
 	public SimpleResponse uploadTifNew(@RequestParam("file") MultipartFile file) {
 		try {
 			String fileDir = uploadLocation + UUID.randomUUID().toString() + File.separator;

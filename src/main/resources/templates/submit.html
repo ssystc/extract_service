@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>submit task</title>
+
+<script src="webjars/jquery/3.1.1/jquery.min.js"></script>
+<script src="webjars/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+<link rel="stylesheet"
+	href="webjars/bootstrap/3.3.5/css/bootstrap.min.css" />
+
+</head>
+<body>
+	<form enctype="multipart/form-data" id="form_example">
+	    <input type="file" name="files" id="files" multiple/><br/><br/>
+	    
+		    请选择文件类型：<br />
+		<p><input type="checkbox" id="png_check" value="png" /> 一个或多个PNG文件</p>
+		<p><input type="checkbox" id="tif_check" value="tif"/> 单个的tif文件</p>
+		
+	    <input type="submit" id=sub_btn value="submit task"/>
+	</form>
+	
+	<script type="text/javascript">
+		$("#sub_btn").on("click", function(){
+
+			var pngIsChecked = $("#png_check").prop("checked");
+			var tifIsChecked = $("#tif_check").prop("checked");
+			if(pngIsChecked==true && tifIsChecked==false){
+				var fd = new FormData();
+				for (var i = 0; i < $("#files")[0].files.length; i++){
+					fd.append("files", $("#files")[0].files[i]);
+				}
+				
+				$.ajax({
+					type:"post",
+					url:"http://127.0.0.1:9090/uploadPngs",
+					data:fd,
+					contentType:false,
+					processData:false,
+					success:function(message){
+						alert(message)
+					}
+				});
+			}
+			
+			else if(pngIsChecked==false && tifIsChecked==true){
+				var fd = new FormData();
+				if($("#files")[0].files.length!=1){
+					alert("只能且必须选择一个tif文件")
+				}
+				for (var i = 0; i < $("#files")[0].files.length; i++){
+					fd.append("file", $("#files")[0].files[i]);
+				}
+				
+				$.ajax({
+					type:"post",
+					url:"http://127.0.0.1:9090/uploadTif",
+					data:fd,
+					contentType:false,
+					processData:false,
+					success:function(message){
+						alert(message)
+					}
+				});
+			}
+			
+			else{
+				alert("只能切必须选择一个文件类型")
+			}
+			
+		});
+	</script>
+
+</body>
+</html>

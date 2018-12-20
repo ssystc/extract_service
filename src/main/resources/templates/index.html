@@ -22,13 +22,13 @@
 			</div>
 		</div>
 		
-		<!-- 删除和新增两个按钮 -->
+		<!-- 查询按钮 -->
 		<div class="row">
 			
 				<div class="form-group col-md-4 col-md-offset-8">
-				    <label for="exampleInputEmail1">任务ID</label>
-				    <input type="email" class="form-control" id="exampleInputEmail1" placeholder="Email">
-				    <button class="btn btn-success btn-sm">查询</button>
+				    <label for="exampleInputTaskId">任务ID</label>
+				    <input class="form-control" id="taskId_input" placeholder="taskId">
+				    <button class="btn btn-success btn-sm" id="select_btn">查询</button>
 				</div>
 
 		</div>
@@ -61,11 +61,43 @@
 		
 		<!-- 显示分页信息 -->
 		<div class="row">
-			<button class="btn btn-success btn-sm">新建任务</button>
+			<button class="btn btn-success btn-sm" id="submit_btn">新建任务</button>
 		</div>
 	</div>
 
 	<script type="text/javascript">
+	
+		$("#submit_btn").on("click", function(){
+			window.open("http://127.0.0.1:9090/submit");
+		});
+	
+	
+		$("#select_btn").on("click", function(){
+			var taskId = $("#taskId_input").val();
+			get_status(taskId);
+			
+		});
+	
+	
+		//获取指定任务状态
+		function get_status(taskId){
+			$.ajax({
+				url:"http://127.0.0.1:9090/getStatus",
+				data:"taskId=" + taskId,
+				type:"get",
+				success:function(result){
+					if(result.taskId==taskId){
+						alert("任务状态为：" + result.statusMsg);
+					}else{
+						alert("没有该任务")
+					}
+					
+				}
+			});
+		}
+		
+		
+	
 		$(function(){
 			to_page(1);
 		});

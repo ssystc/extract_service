@@ -12,4 +12,9 @@ public class HtmlController {
         return "/index";
     }
 	
+	@RequestMapping("submit")
+	public String submit() {
+		return "/submit";
+	}
+	
 }

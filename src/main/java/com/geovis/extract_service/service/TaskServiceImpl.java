@@ -41,7 +41,13 @@ public class TaskServiceImpl implements TaskService {
 
 	@Override
 	public TaskEntity getTaskEntityById(Long id) {
-		return taskRespository.findOneById(id);
+		try {
+			TaskEntity taskEntity = taskRespository.findOneById(id);
+			return taskEntity;
+		} catch (java.lang.NullPointerException e) {
+			return null;
+		}
+		
 	}
 
 
